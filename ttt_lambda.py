@@ -13,23 +13,33 @@ expected_token = kms.decrypt(CiphertextBlob=b64decode(KMS_ENCRYPTED_TOKEN))['Pla
 
 def lambda_handler(event, context):
     resource = event["resource"]
+    params = parse_qs(event['body'])
+    token = params['token'][0]
+    if token != expected_token.decode():
+        return rh.respond(Exception('Invalid request token'))
+
+    custom_text = None
+    if 'text' in params:
+        custom_text = params['text'][0]
+
+    response = None
 
     # Simple router
     if resource == '/ttt':
-        print(event.method)
-        rh.new_game()
+        response = rh.new_game(custom_text)
     elif resource == '/ttt-help':
-        rh.game_help()
+        response = rh.game_help()
     elif resource == '/ttt-accept':
-        rh.accept()
+        response = rh.accept()
     elif resource == '/ttt-decline':
-        rh.decline()
+        response = rh.decline()
     elif resource == '/ttt-board':
-        rh.board()
+        response = rh.board()
     elif resource == '/ttt-move':
-        rh.move()
+        response = rh.move(custom_text)
     elif resource == 'ttt-end':
-        rh.end()
+        response = rh.end()
     else:
-        print
-        "Invalid call"
+        response = rh.invalid_request()
+
+    return response

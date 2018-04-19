@@ -9,11 +9,11 @@ import os
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Configuration for choosing Salesforce or Python as app logic default: salesforce
-LOGIC_SOURCE = "salesforce"
+TTS_LOGIC_SOURCE = os.environ["TTS_LOGIC_SOURCE"]
 
 # Salesforce related configuation (If SFDC is the main logic source)
 SFDC_USERNAME = os.environ["SFDC_USERNAME"]
-SFDC_PASSWORD = os.environ["SFDC_PPASSWORD"]
+SFDC_PASSWORD = os.environ["SFDC_PASSWORD"]
 SFDC_TOKEN    = os.environ["SFDC_TOKEN"]
 
 # Encrypment token for AWS KMS
