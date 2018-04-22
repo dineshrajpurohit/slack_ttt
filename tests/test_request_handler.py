@@ -126,7 +126,29 @@ class RequestHandlerTest(unittest.TestCase):
 
     # GAME MOVES TEST CASES
 
+    def test_move_with_no_game(self):
+        params = {'channel_id': ['TESTCHANNEL'],
+                  'user_name': ['user2'],
+                  'command': ['/ttt-move'],
+                  'text': ['b2']
+                  }
+        request = RequestHandler(params)
+        response = request.route('/ttt-move')
+        self.assertIn('No tic-tac-toe game is being played currently.', response['body'])
+
+    def test_move_wrong_player(self):
+        self.ddb.update_game(channel_id='TESTCHANNEL', game_status='in_progress')
+        params = {'channel_id': ['TESTCHANNEL'],
+                  'user_name': ['user3'],
+                  'command': ['/ttt-move'],
+                  'text': ['b2']
+                  }
+        request = RequestHandler(params)
+        response = request.route('/ttt-move')
+        self.assertIn('can play the next move in the game.', response['body'])
+
     def test_valid_next_move(self):
+        self.ddb.update_game(channel_id='TESTCHANNEL', game_status='in_progress')
         params = {'channel_id': ['TESTCHANNEL'],
                   'user_name': ['user2'],
                   'command': ['/ttt-move'],
@@ -137,6 +159,7 @@ class RequestHandlerTest(unittest.TestCase):
         self.assertIn('has made a move', response['body'])
 
     def test_invalid_next_move(self):
+        self.ddb.update_game(channel_id='TESTCHANNEL', game_status='in_progress')
         params = {'channel_id': ['TESTCHANNEL'],
                   'user_name': ['user2'],
                   'command': ['/ttt-move'],
@@ -147,6 +170,7 @@ class RequestHandlerTest(unittest.TestCase):
         self.assertIn('Invalid move', response['body'])
 
     def test_next_move_wrong_opponent(self):
+        self.ddb.update_game(channel_id='TESTCHANNEL', game_status='in_progress')
         params = {'channel_id': ['TESTCHANNEL'],
                   'user_name': ['user3'],
                   'command': ['/ttt-move'],
@@ -154,7 +178,7 @@ class RequestHandlerTest(unittest.TestCase):
                   }
         request = RequestHandler(params)
         response = request.route('/ttt-move')
-        self.assertIn('can make a move', response['body'])
+        self.assertIn('can play the next move in the game', response['body'])
 
     # GAME COMPLETION TEST CASES
 

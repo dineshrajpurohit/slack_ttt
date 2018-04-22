@@ -78,7 +78,6 @@ class DynamoDB:
         response = self.ttt_table.get_item(
                 Key= { 'channel_id': channel_id }
             )
-        print('CURRENT_GAME STATUS:', response)
         return response
 
 
@@ -187,7 +186,6 @@ class DynamoDB:
                                             loc_c3 = 'None'
                                         )
         )
-        print('RESPONSE', response)
         if response['ResponseMetadata']['HTTPStatusCode'] == 200:
             return self.current_game_state(channel_id)
         else:

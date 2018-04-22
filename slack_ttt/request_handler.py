@@ -59,7 +59,6 @@ class RequestHandler:
             response = self.__invalid_request()
         return response
 
-
     def __new_game(self):
         """This request handler handles creation of new game with the provided opponent
 
@@ -138,8 +137,16 @@ class RequestHandler:
 
         :return:
         """
-        print("HELPER METHOD")
-        help = '            `Board for Tic-Tac-Toe on Slack` \n\n'
+        help  = '*Tic-Tac-Toe Game Help*\n'
+        help += 'Instruction on commands to play the game \n'
+        help += '`/ttt @opponentusername` - challenge a game of ttt with the opponent.\n'
+        help += '`/ttt-accept` - accept the challenge to play the game.\n'
+        help += '`/ttt-decline` - decline challenge to play the game\n'
+        help += '`/ttt-board` - display current status of the tic-tac-toe board\n'
+        help += '`/ttt-move b3` - enter \'X\' or \'O\' at the specified location (row *b* and column *3*)\n'
+        help += '`/ttt-help` - display help for the tic-tac-toe game\n'
+        help += '`/ttt-end` - end the current game\n\n'
+        help += '            `Board for Tic-Tac-Toe` \n\n'
         help += """```
 
                                    1      2      3
@@ -253,6 +260,21 @@ class RequestHandler:
         response += self.__draw_board()
         return self.respond(None, response=response)
 
+    def __check_valid_move(self, move, current_game):
+        moves = {'a1': current_game['loc_a1'],
+                 'a2': current_game['loc_a2'],
+                 'a3': current_game['loc_a3'],
+                 'b1': current_game['loc_b1'],
+                 'b2': current_game['loc_b2'],
+                 'b3': current_game['loc_b3'],
+                 'c1': current_game['loc_c1'],
+                 'c2': current_game['loc_c2'],
+                 'c3': current_game['loc_c3'],
+                 }
+        if move in moves and moves[move] is None :
+            return True
+        else:
+            return False
 
     def __move(self):
         """Move handler handles the next move by the player.
@@ -260,8 +282,29 @@ class RequestHandler:
         :param position: position where user wants to put X or O to
         :return: current view of the board after the move
         """
-        print("MOVE")
-        return self.respond(None, response='No implementation')
+        # if there is no command
+        if self.command is None:
+            return self.respond(None, response='You have not provided a location for the move. \n'
+                                               ' Use command `/ttt-move [location]')
+
+        current_game = self.ddb.current_game_state(self.channel_id)
+
+        if 'Item' not in current_game or current_game['Item']['game_status'] == 'challenged':
+            return self.respond(None, response="""No tic-tac-toe game is being played currently. \
+                        If you are interested then you can challenge someone using command \n `/ttt @opponentName`""")
+
+        current_game = current_game['Item']
+
+        if current_game['opponent_name'] != self.requester:
+            return self.respond(None, response='Only `{0}` can play the next move in the game.'
+                                .format(current_game['current_turn_player']))
+
+        # check valid move
+        if self.__check_valid_move(self.command, current_game):
+            pass
+        else:
+            return self.respond(None, response='Invalid move. Please check the board by typing'
+                                               ' `/ttt-board` for available moves.')
 
 
     def __end(self):
@@ -288,6 +331,5 @@ class RequestHandler:
 
         :return: Invalid response payload
         """
-        print("invalif GAME")
         return self.respond(None, response='Invalid request')
 

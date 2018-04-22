@@ -12,10 +12,8 @@ expected_token = kms.decrypt(CiphertextBlob=b64decode(KMS_ENCRYPTED_TOKEN))['Pla
 
 
 def lambda_handler(event, context):
-    print(event)
     resource = event["resource"]
     params = parse_qs(event['body'])
-    print(params)
     token = params['token'][0]
     if token != expected_token.decode():
         return RequestHandler.respond(Exception('Invalid request token'))
