@@ -69,13 +69,6 @@ class DynamoDB:
             'updated_at': time.strftime('%Y-%m-%d %H:%M:%S')
         }
 
-    def game_in_progress(self, channel_id):
-        response = self.current_game_state(channel_id=channel_id)
-        if 'Item' in response and response['Item']['game_status'] == 'In Progress':
-            return True
-        else:
-            return False
-
     def current_game_state(self, channel_id):
         """Get current state of the game
 
@@ -85,7 +78,7 @@ class DynamoDB:
         response = self.ttt_table.get_item(
                 Key= { 'channel_id': channel_id }
             )
-        print('RES:', response)
+        print('CURRENT_GAME STATUS:', response)
         return response
 
 
@@ -105,23 +98,55 @@ class DynamoDB:
                     loc_c2 = None,
                     loc_c3 = None
                     ):
+        update_attributes = {}
+        update_expression = 'SET'
+        if challenger_name is not None:
+            update_expression+=' challenger_name=:challenger_name,'
+            update_attributes[':challenger_name'] = challenger_name
+        if opponent_name is not None:
+            update_expression+=' opponent_name=:opponent_name,'
+            update_attributes[':opponent_name'] = opponent_name
+        if current_turn_player is not None:
+            update_expression+=' current_turn_player=:current_turn_player,'
+            update_attributes[':current_turn_player'] = current_turn_player
+        if game_status is not None:
+            update_expression+= ' game_status=:game_status,'
+            update_attributes[':game_status'] = game_status
+        if loc_a1 is not None:
+            update_expression += ' loc_a1=:loc_a1,'
+            update_attributes[':loc_a1'] = loc_a1
+        if loc_a2 is not None:
+            update_expression += ' loc_a2=:loc_a2,'
+            update_attributes[':loc_a2'] = loc_a2
+        if loc_a3 is not None:
+            update_expression += ' loc_a3=:loc_a3,'
+            update_attributes[':loc_a3'] = loc_a3
+        if loc_b1 is not None:
+            update_expression += ' loc_b1=:loc_b1,'
+            update_attributes[':loc_b1'] = loc_b1
+        if loc_b2 is not None:
+            update_expression += ' loc_b2=:loc_b2,'
+            update_attributes[':loc_b2'] = loc_b2
+        if loc_b3 is not None:
+            update_expression += ' loc_b3=:loc_b3,'
+            update_attributes[':loc_b3'] = loc_b3
+        if loc_c1 is not None:
+            update_expression += ' loc_c1=:loc_c1,'
+            update_attributes[':loc_c1'] = loc_c1
+        if loc_c2 is not None:
+            update_expression += ' loc_c2=::loc_c2,'
+            update_attributes[':loc_c2'] = loc_c2
+        if loc_c3 is not None:
+            update_expression += ' loc_c3=:loc_c3,'
+            update_attributes[':loc_c3'] = loc_c3
+
         response = self.ttt_table.update_item(
-            Item=self._construct_ddb_json(
-                channel_id=channel_id,
-                challenger_name=challenger_name,
-                opponent_name=opponent_name,
-                current_turn_player=current_turn_player,
-                loc_a1=loc_a1,
-                loc_a2=loc_a2,
-                loc_a3=loc_a3,
-                loc_b1=loc_b1,
-                loc_b2=loc_b2,
-                loc_b3=loc_b3,
-                loc_c1=loc_c1,
-                loc_c2=loc_c2,
-                loc_c3=loc_c3
-            )
-        )
+            Key={
+                'channel_id': channel_id
+            },
+            UpdateExpression=update_expression[:-1],
+            ExpressionAttributeValues=update_attributes
+         )
         if response['ResponseMetadata']['HTTPStatusCode'] == 200:
             return True
         else:
@@ -131,14 +156,17 @@ class DynamoDB:
                         channel_id,
                         challenger_name,
                         opponent_name,
-                        current_turn_player
                         ):
         action = {0: 'X', 1: 'O'}
         r = random.randint(0,1)
         challenger_action = action[r]
         opponent_action = None
-        if r == 0: opponent_action = action[1]
-        else: opponent_action = action[0]
+        if r == 0:
+            opponent_action = action[1]
+            current_turn_player=challenger_name
+        else:
+            opponent_action = action[0]
+            current_turn_player=opponent_name
         response = self.ttt_table.put_item(
             Item= self._construct_ddb_json(
                                             channel_id=channel_id,
