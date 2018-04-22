@@ -91,9 +91,10 @@ class DynamoDB:
 
     def update_game(self,
                     channel_id,
-                    challenger_name,
-                    opponent_name,
-                    current_turn_player,
+                    challenger_name=None,
+                    opponent_name=None,
+                    current_turn_player=None,
+                    game_status=None,
                     loc_a1 = None,
                     loc_a2 = None,
                     loc_a3= None,
@@ -164,13 +165,13 @@ class DynamoDB:
         else:
             return None
 
-    def delete_game(self, game_id):
+    def delete_game(self, channel_id):
         """
 
         :param challenge_id: game id which needs to be deleted
         :return: response from dynamodb call
         """
-        response = self.ttt_table.delete_item(key= game_id)
+        response = self.ttt_table.delete_item(Key= { 'channel_id': channel_id })
         if response['ResponseMetadata']['HTTPStatusCode'] == 200:
             return True
         else:
