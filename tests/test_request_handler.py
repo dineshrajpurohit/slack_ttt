@@ -21,6 +21,8 @@ class RequestHandlerTest(unittest.TestCase):
         if 'Item' in game:
             self.ddb.delete_game('TESTCHANNELCUST')
 
+    # NEW GAME USE CASES
+
     def test_new_game_no_opponent(self):
         params ={'channel_id': ['TESTCHANNELCUST'],
                  'user_name': ['user1']
@@ -51,6 +53,28 @@ class RequestHandlerTest(unittest.TestCase):
         response = self.new_game_main_request.route('/ttt')
         self.assertIn('Please wait for 5 minutes', response['body'])
 
+    def test_accept_game_no_game(self):
+        self.ddb.delete_game('TESTCHANNEL')
+        params = {'channel_id': ['TESTCHANNEL'],
+                  'user_name': ['user2'],
+                  'command': ['/ttt-accept'],
+                  }
+        request = RequestHandler(params)
+        response = request.route('/ttt-accept')
+        self.assertIn('You have not been challenged for a game of tic-tac-toe yet', response['body'])
+
+    # GAME ACCEPT USE CASES
+
+    def test_accept_in_progress_game(self):
+        response = self.ddb.update_game(channel_id='TESTCHANNEL', game_status='in_progress')
+        params = {'channel_id': ['TESTCHANNEL'],
+                  'user_name': ['user2'],
+                  'command': ['/ttt-accept'],
+                  }
+        request = RequestHandler(params)
+        response = request.route('/ttt-accept')
+        self.assertIn('You have not been challenged for a game of tic-tac-toe yet', response['body'])
+
     def test_accept_game_right_opponent(self):
         params = {'channel_id': ['TESTCHANNEL'],
                   'user_name': ['user2'],
@@ -67,8 +91,9 @@ class RequestHandlerTest(unittest.TestCase):
                   }
         request = RequestHandler(params)
         response = request.route('/ttt-accept')
-        self.assertIn('can accept a challenge', response['body'])
+        self.assertIn('can accept the challenge', response['body'])
 
+    # GAME DECLINE USE CASES
 
     def test_decline_game_right_opponent(self):
         params = {'channel_id': ['TESTCHANNEL'],
@@ -86,7 +111,20 @@ class RequestHandlerTest(unittest.TestCase):
                   }
         request = RequestHandler(params)
         response = request.route('/ttt-decline')
-        self.assertIn('can decline the current game', response['body'])
+        self.assertIn('can decline the challenge', response['body'])
+
+    # DISPLAY BOARD TEST CASES
+
+    def test_board_no_game(self):
+        response = self.new_game_main_request.route('/ttt-board')
+        self.assertIn('No tic-tac-toe game is being played currently', response['body'])
+
+    def test_board_current_game(self):
+        self.ddb.update_game(channel_id='TESTCHANNEL', game_status='in_progress')
+        response = self.new_game_main_request.route('/ttt-board')
+        self.assertIn('Current Status of the game:', response['body'])
+
+    # GAME MOVES TEST CASES
 
     def test_valid_next_move(self):
         params = {'channel_id': ['TESTCHANNEL'],
@@ -118,6 +156,8 @@ class RequestHandlerTest(unittest.TestCase):
         response = request.route('/ttt-move')
         self.assertIn('can make a move', response['body'])
 
+    # GAME COMPLETION TEST CASES
+
     def test_game_complete(self):
         params = {'channel_id': ['TESTCHANNEL'],
                   'user_name': ['user2'],
@@ -137,6 +177,37 @@ class RequestHandlerTest(unittest.TestCase):
         request = RequestHandler(params)
         response = request.route('/ttt-move')
         self.assertIn('game is a tie', response['body'])
+
+    # GAME ENDING TEST CASES
+
+    def test_no_game_ending(self):
+        params = {'channel_id': ['TESTCHANNEL'],
+                  'user_name': ['user2'],
+                  'command': ['/ttt-move'],
+                  }
+        request = RequestHandler(params)
+        response = request.route('/ttt-end')
+        self.assertIn('There are no current game being played', response['body'])
+
+    def test_current_players_ending(self):
+        self.ddb.update_game(channel_id='TESTCHANNEL', game_status='in_progress')
+        params = {'channel_id': ['TESTCHANNEL'],
+                  'user_name': ['user2'],
+                  'command': ['/ttt-move'],
+                  }
+        request = RequestHandler(params)
+        response = request.route('/ttt-end')
+        self.assertIn('has ended the game', response['body'])
+
+    def test_non_player_ending(self):
+        self.ddb.update_game(channel_id='TESTCHANNEL', game_status='in_progress')
+        params = {'channel_id': ['TESTCHANNEL'],
+                  'user_name': ['user3'],
+                  'command': ['/ttt-move'],
+                  }
+        request = RequestHandler(params)
+        response = request.route('/ttt-end')
+        self.assertIn('Only the players who are currently playing can end', response['body'])
 
 if __name__ == '__main__':
     unittest.main()
