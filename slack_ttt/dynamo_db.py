@@ -1,5 +1,6 @@
 import boto3
 import time
+import random
 
 class Singleton:
     def __init__(self, class_):
@@ -27,6 +28,9 @@ class DynamoDB:
                             challenger_name,
                             opponent_name,
                             current_turn_player,
+                            challenger_action=None,
+                            opponent_action=None,
+                            game_status=None,
                             loc_a1=None,
                             loc_a2=None,
                             loc_a3=None,
@@ -46,7 +50,10 @@ class DynamoDB:
         """
         return {
             'challenger_name': challenger_name,
+            'challenger_action' : challenger_action,
             'opponent_name': opponent_name,
+            'opponent_action': opponent_action,
+            'game_status': game_status,
             'current_turn_player': current_turn_player,
             'channel_id': channel_id,
             'loc_a1': loc_a1,
@@ -63,26 +70,61 @@ class DynamoDB:
         }
 
     def game_in_progress(self, channel_id):
-        response = self.ttt_table.get_item(
-            Key= { 'channel_id': channel_id }
-        )
-        if 'Item' in response:
+        response = self.current_game_state(channel_id=channel_id)
+        if 'Item' in response and response['Item']['game_status'] == 'In Progress':
             return True
         else:
             return False
 
-    def current_game_state(self, challenge_id):
+    def current_game_state(self, channel_id):
         """Get current state of the game
 
         :param challenge_id:
         :return:
         """
-        return self.ttt_table.get_item({
-            'key': challenge_id
-        })['Item']
+        response = self.ttt_table.get_item(
+                Key= { 'channel_id': channel_id }
+            )
+        print('RES:', response)
+        return response
 
-    def update_game(self):
-        pass
+
+    def update_game(self,
+                    channel_id,
+                    challenger_name,
+                    opponent_name,
+                    current_turn_player,
+                    loc_a1 = None,
+                    loc_a2 = None,
+                    loc_a3= None,
+                    loc_b1 = None,
+                    loc_b2 = None,
+                    loc_b3 = None,
+                    loc_c1 = None,
+                    loc_c2 = None,
+                    loc_c3 = None
+                    ):
+        response = self.ttt_table.update_item(
+            Item=self._construct_ddb_json(
+                channel_id=channel_id,
+                challenger_name=challenger_name,
+                opponent_name=opponent_name,
+                current_turn_player=current_turn_player,
+                loc_a1=loc_a1,
+                loc_a2=loc_a2,
+                loc_a3=loc_a3,
+                loc_b1=loc_b1,
+                loc_b2=loc_b2,
+                loc_b3=loc_b3,
+                loc_c1=loc_c1,
+                loc_c2=loc_c2,
+                loc_c3=loc_c3
+            )
+        )
+        if response['ResponseMetadata']['HTTPStatusCode'] == 200:
+            return True
+        else:
+            return False
 
     def create_new_game(self,
                         channel_id,
@@ -90,13 +132,21 @@ class DynamoDB:
                         opponent_name,
                         current_turn_player
                         ):
-
+        action = {0: 'X', 1: 'O'}
+        r = random.randint(0,1)
+        challenger_action = action[r]
+        opponent_action = None
+        if r == 0: opponent_action = action[1]
+        else: opponent_action = action[0]
         response = self.ttt_table.put_item(
             Item= self._construct_ddb_json(
                                             channel_id=channel_id,
                                             challenger_name=challenger_name,
                                             opponent_name=opponent_name,
                                             current_turn_player=current_turn_player,
+                                            challenger_action = challenger_action,
+                                            opponent_action = opponent_action,
+                                            game_status='challenged',
                                             loc_a1 = 'None',
                                             loc_a2 = 'None',
                                             loc_a3 = 'None',
@@ -108,11 +158,11 @@ class DynamoDB:
                                             loc_c3 = 'None'
                                         )
         )
-        print('RESPONSE: ', response)
+        print('RESPONSE', response)
         if response['ResponseMetadata']['HTTPStatusCode'] == 200:
-            return True
+            return self.current_game_state(channel_id)
         else:
-            return False
+            return None
 
     def delete_game(self, game_id):
         """
@@ -120,8 +170,10 @@ class DynamoDB:
         :param challenge_id: game id which needs to be deleted
         :return: response from dynamodb call
         """
-        return self.ttt_table.delete_item({
-            'key': game_id
-        })
+        response = self.ttt_table.delete_item(key= game_id)
+        if response['ResponseMetadata']['HTTPStatusCode'] == 200:
+            return True
+        else:
+            return False
 
 
