@@ -426,10 +426,11 @@ class RequestHandler:
                                               current_game['loc_c3'])
 
             if self.__check_winner(current_game):
-                response = '`{0}` has won the game :fireworks: :fireworks: :sparkler: \n\n'.format(self.requester)
+                response = '`{0}` has won the game :fireworks: :fireworks: :sparkler: :tada: :confetti_ball: \n\n'\
+                    .format(self.requester)
             # check if the last move was a tie
             elif self.__check_game_tie(current_game):
-                response = '`The game between {0} and {1} is a tie.` \n'\
+                response = 'The game between `{0}` and `{1}` is a `Cat\'s Game.` \n'\
                     .format(current_game['challenger_name'], current_game['opponent_name'])
             else:
                 return self.__board(response_type='in_channel')

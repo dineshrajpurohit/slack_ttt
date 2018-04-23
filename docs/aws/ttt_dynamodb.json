@@ -1,0 +1,35 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": [
+                "dynamodb:GetItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:PutItem",
+                "dynamodb:Scan",
+                "dynamodb:Query",
+                "dynamodb:UpdateItem",
+                "dynamodb:BatchWriteItem",
+                "dynamodb:BatchGetItem",
+                "kms:Decrypt"
+            ],
+            "Resource": "{ADD YOUR LAMBDA ARN}:table/ttt",
+            "Effect": "Allow"
+        },
+        {
+            "Effect": "Allow",
+            "Action": "logs:CreateLogGroup",
+            "Resource": "{ADD YOUR LAMBDA ARN}:*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+            ],
+            "Resource": [
+                "{ADD YOUR LAMBDA ARN}:log-group:/aws/lambda/ttt:*"
+            ]
+        }
+    ]
+}
