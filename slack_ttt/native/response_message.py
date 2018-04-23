@@ -1,4 +1,9 @@
 import json
+import logging
+from slack_ttt.logger import setup_logging, log_entry_exit
+
+setup_logging()
+logger = logging.getLogger(__name__)
 
 class ResponseMessageBuilder:
 
@@ -98,7 +103,6 @@ class ResponseMessageBuilder:
     @staticmethod
     def response(type, values):
         if type in ResponseMessageBuilder.__responses:
-
             return (ResponseMessageBuilder.__responses[type]).format(*values)
         else:
             return 'Invalid response type {}'.format(type)

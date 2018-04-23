@@ -1,5 +1,5 @@
 import unittest
-from slack_ttt.dynamo_db import DynamoDB
+from slack_ttt.native.dynamo_db import DynamoDB
 from slack_ttt.request_handler import RequestHandler
 
 class RequestHandlerTest(unittest.TestCase):
@@ -61,6 +61,7 @@ class RequestHandlerTest(unittest.TestCase):
                   }
         request = RequestHandler(params)
         response = request.route('/ttt-accept')
+        print('** RESPONSE',response)
         self.assertIn('You have not been challenged for a game of tic-tac-toe yet', response['body'])
 
     # GAME ACCEPT USE CASES
