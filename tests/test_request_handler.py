@@ -148,18 +148,31 @@ class RequestHandlerTest(unittest.TestCase):
         self.assertIn('can play the next move in the game.', response['body'])
 
     def test_valid_next_move(self):
+        current_game = self.ddb.current_game_state('TESTCHANNEL')
+        current_game = current_game['Item']
         self.ddb.update_game(channel_id='TESTCHANNEL', game_status='in_progress')
         params = {'channel_id': ['TESTCHANNEL'],
-                  'user_name': ['user2'],
+                  'user_name': [current_game['current_turn_player'][1:]],
                   'command': ['/ttt-move'],
                   'text': ['b2']
                   }
         request = RequestHandler(params)
         response = request.route('/ttt-move')
-        self.assertIn('has made a move', response['body'])
+        self.assertIn('Current Status of the game', response['body'])
 
     def test_invalid_next_move(self):
-        self.ddb.update_game(channel_id='TESTCHANNEL', game_status='in_progress')
+        self.ddb.update_game(channel_id='TESTCHANNEL',
+                             game_status='in_progress',
+                             current_turn_player='@user2',
+                             loc_a1='X',
+                             loc_a2='O',
+                             loc_a3='X',
+                             loc_b1='O',
+                             loc_b2='X',
+                             loc_b3='O',
+                             loc_c1='O',
+                             loc_c2='X',
+                             loc_c3='O')
         params = {'channel_id': ['TESTCHANNEL'],
                   'user_name': ['user2'],
                   'command': ['/ttt-move'],
@@ -183,6 +196,12 @@ class RequestHandlerTest(unittest.TestCase):
     # GAME COMPLETION TEST CASES
 
     def test_game_complete(self):
+        self.ddb.update_game(channel_id='TESTCHANNEL',
+                             game_status='in_progress',
+                             current_turn_player='@user2',
+                             loc_a1='X',
+                             loc_a2='X',
+                             loc_a3='X')
         params = {'channel_id': ['TESTCHANNEL'],
                   'user_name': ['user2'],
                   'command': ['/ttt-move'],
@@ -193,14 +212,26 @@ class RequestHandlerTest(unittest.TestCase):
         self.assertIn('has won the game', response['body'])
 
     def test_game_tie(self):
+        current_game = self.ddb.current_game_state('TESTCHANNEL')
+        current_game = current_game['Item']
+        self.ddb.update_game(channel_id='TESTCHANNEL',
+                             game_status='in_progress',
+                             loc_a1='X',
+                             loc_a2='O',
+                             loc_a3='X',
+                             loc_b1='O',
+                             loc_b3='O',
+                             loc_c1='O',
+                             loc_c2='X',
+                             loc_c3='O')
         params = {'channel_id': ['TESTCHANNEL'],
-                  'user_name': ['user2'],
+                  'user_name': [current_game['current_turn_player'][1:]],
                   'command': ['/ttt-move'],
                   'text': ['b2']
                   }
         request = RequestHandler(params)
         response = request.route('/ttt-move')
-        self.assertIn('game is a tie', response['body'])
+        self.assertIn('is a tie', response['body'])
 
     # GAME ENDING TEST CASES
 

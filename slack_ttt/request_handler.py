@@ -116,6 +116,15 @@ class RequestHandler:
                          loc_c1='#',
                          loc_c2='#',
                          loc_c3='#'):
+        loc_a1 = '#' if loc_a1 == 'None' else loc_a1
+        loc_a2 = '#' if loc_a2 == 'None' else loc_a2
+        loc_a3 = '#' if loc_a3 == 'None' else loc_a3
+        loc_b1 = '#' if loc_b1 == 'None' else loc_b1
+        loc_b2 = '#' if loc_b2 == 'None' else loc_b2
+        loc_b3 = '#' if loc_b3 == 'None' else loc_b3
+        loc_c1 = '#' if loc_c1 == 'None' else loc_c1
+        loc_c2 = '#' if loc_c2 == 'None' else loc_c2
+        loc_c3 = '#' if loc_c3 == 'None' else loc_c3
 
         board   =   """```
                             1       2       3
@@ -238,7 +247,7 @@ class RequestHandler:
         else:
             return self.respond(None, response='Something went wrong with your command. Please try again')
 
-    def __board(self):
+    def __board(self, response_type='Ephemeral'):
         """Board request handler displays the current status of the board to the user.
 
         :return: current view of the board
@@ -251,14 +260,22 @@ class RequestHandler:
             If you are interested then you can challenge someone using command \n `/ttt @opponentName`""")
 
         current_game = current_game['Item']
-        response = 'Current Status of the game: {0} ( {1} ) vs {2} ( {3} )'\
+        response = 'Current Status of the game: `{0}` ( `{1}` ) vs `{2}` ( `{3}` )'\
             .format(current_game['challenger_name'],
                     current_game['challenger_action'],
                     current_game['opponent_name'],
                     current_game['opponent_action'])
-        response += '\n> Next turn {0} \n\n'.format(current_game['current_turn_player'])
-        response += self.__draw_board()
-        return self.respond(None, response=response)
+        response += '\n> Next turn `{0}` \n\n'.format(current_game['current_turn_player'])
+        response += self.__draw_board(current_game['loc_a1'],
+                                      current_game['loc_a2'],
+                                      current_game['loc_a3'],
+                                      current_game['loc_b1'],
+                                      current_game['loc_b2'],
+                                      current_game['loc_b3'],
+                                      current_game['loc_c1'],
+                                      current_game['loc_c2'],
+                                      current_game['loc_c3'],)
+        return self.respond(None, response_type=response_type, response=response)
 
     def __check_valid_move(self, move, current_game):
         moves = {'a1': current_game['loc_a1'],
@@ -271,10 +288,93 @@ class RequestHandler:
                  'c2': current_game['loc_c2'],
                  'c3': current_game['loc_c3'],
                  }
-        if move in moves and moves[move] is None :
+        if move in moves and moves[move] == 'None':
             return True
         else:
             return False
+
+    def __update_db_with_move(self, move, val, next_player):
+        if move == 'a1':
+            self.ddb.update_game(channel_id=self.channel_id, loc_a1=val, current_turn_player=next_player)
+        elif move == 'a2':
+            self.ddb.update_game(channel_id=self.channel_id, loc_a2=val, current_turn_player=next_player)
+        elif move == 'a3':
+            self.ddb.update_game(channel_id=self.channel_id, loc_a3=val, current_turn_player=next_player)
+        elif move == 'b1':
+            self.ddb.update_game(channel_id=self.channel_id, loc_b1=val, current_turn_player=next_player)
+        elif move == 'b2':
+            self.ddb.update_game(channel_id=self.channel_id, loc_b2=val, current_turn_player=next_player)
+        elif move == 'b3':
+            self.ddb.update_game(channel_id=self.channel_id, loc_b3=val, current_turn_player=next_player)
+        elif move == 'c1':
+            self.ddb.update_game(channel_id=self.channel_id, loc_c1=val, current_turn_player=next_player)
+        elif move == 'c2':
+            self.ddb.update_game(channel_id=self.channel_id, loc_c2=val, current_turn_player=next_player)
+        elif move == 'c3':
+            self.ddb.update_game(channel_id=self.channel_id, loc_c3=val, current_turn_player=next_player)
+        else:
+            raise Exception()
+
+    def __check_winner(self, current_game):
+
+        # check winning play in rows
+        if  current_game['loc_a1'] != 'None' \
+                and current_game['loc_a1'] == current_game['loc_a2']\
+                and current_game['loc_a1'] == current_game['loc_a3']:
+            return True
+
+        if current_game['loc_b1'] != 'None' \
+                and current_game['loc_b1'] == current_game['loc_b2']\
+                and current_game['loc_b1'] == current_game['loc_b3']:
+            return True
+
+        if current_game['loc_c1'] != 'None' \
+                and current_game['loc_c1'] == current_game['loc_c2']\
+                and current_game['loc_c1'] == current_game['loc_c3']:
+            return True
+
+        # check winning play in columns
+        if current_game['loc_a1'] != 'None'\
+                and current_game['loc_a1'] == current_game['loc_b1']\
+                and current_game['loc_a1'] == current_game['loc_c1']:
+            return True
+
+        if current_game['loc_a2'] != 'None'\
+                and current_game['loc_a2'] == current_game['loc_b2']\
+                and current_game['loc_a2'] == current_game['loc_c2']:
+            return True
+
+        if current_game['loc_a3'] != 'None'\
+                and current_game['loc_a3'] == current_game['loc_b3']\
+                and current_game['loc_a3'] == current_game['loc_c3']:
+            return True
+
+        # check winning play diagonally
+        if current_game['loc_a1'] != 'None'\
+                and current_game['loc_a1'] == current_game['loc_b2']\
+                and current_game['loc_a1'] == current_game['loc_c3']:
+            return True
+
+        if current_game['loc_a3'] != 'None'\
+                and current_game['loc_a3'] == current_game['loc_b2']\
+                and current_game['loc_a3'] == current_game['loc_c1']:
+            return True
+
+        return False
+
+    def __check_game_tie(self, current_game):
+        if current_game['loc_a1'] != 'None' \
+            and current_game['loc_a2'] != 'None' \
+            and current_game['loc_a3'] != 'None' \
+            and current_game['loc_b1'] != 'None' \
+            and current_game['loc_b2'] != 'None' \
+            and current_game['loc_b3'] != 'None' \
+            and current_game['loc_c1'] != 'None' \
+            and current_game['loc_c2'] != 'None' \
+            and current_game['loc_c3'] != 'None':
+            return True
+        return False
+
 
     def __move(self):
         """Move handler handles the next move by the player.
@@ -295,13 +395,50 @@ class RequestHandler:
 
         current_game = current_game['Item']
 
-        if current_game['opponent_name'] != self.requester:
+        if current_game['current_turn_player'] != self.requester:
             return self.respond(None, response='Only `{0}` can play the next move in the game.'
                                 .format(current_game['current_turn_player']))
 
         # check valid move
         if self.__check_valid_move(self.command, current_game):
-            pass
+            current_player = self.requester
+            move = None
+            next_player = current_player
+            if current_player == current_game['challenger_name']:
+                move = current_game['challenger_action']
+                next_player = current_game['opponent_name']
+            else:
+                move = current_game['opponent_action']
+                next_player = current_game['challenger_name']
+            self.__update_db_with_move(self.command, move, next_player)
+
+            # check if the last move won the game
+            current_game = self.ddb.current_game_state(self.channel_id)
+            current_game = current_game['Item']
+            board = self.__draw_board(current_game['loc_a1'],
+                                              current_game['loc_a2'],
+                                              current_game['loc_a3'],
+                                              current_game['loc_b1'],
+                                              current_game['loc_b2'],
+                                              current_game['loc_b3'],
+                                              current_game['loc_c1'],
+                                              current_game['loc_c2'],
+                                              current_game['loc_c3'])
+
+            if self.__check_winner(current_game):
+                response = '`{0}` has won the game :fireworks: :fireworks: :sparkler: \n\n'.format(self.requester)
+            # check if the last move was a tie
+            elif self.__check_game_tie(current_game):
+                response = '`The game between {0} and {1} is a tie.` \n'\
+                    .format(current_game['challenger_name'], current_game['opponent_name'])
+            else:
+                return self.__board(response_type='in_channel')
+
+            self.ddb.delete_game(self.channel_id)
+            response += '`The final status of the board`\n\n'
+            response += board
+            return self.respond(None, response_type="in_channel", response=response)
+
         else:
             return self.respond(None, response='Invalid move. Please check the board by typing'
                                                ' `/ttt-board` for available moves.')

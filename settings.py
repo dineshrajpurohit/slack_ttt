@@ -9,7 +9,7 @@ import os
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Configuration for choosing Salesforce or Python as app logic default: salesforce
-TTS_LOGIC_SOURCE = os.environ["TTS_LOGIC_SOURCE"]
+TTT_LOGIC_SOURCE = os.environ["TTT_LOGIC_SOURCE"]
 
 # Salesforce related configuation (If SFDC is the main logic source)
 SFDC_USERNAME = os.environ["SFDC_USERNAME"]

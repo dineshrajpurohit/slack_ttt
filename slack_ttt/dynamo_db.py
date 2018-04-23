@@ -133,7 +133,7 @@ class DynamoDB:
             update_expression += ' loc_c1=:loc_c1,'
             update_attributes[':loc_c1'] = loc_c1
         if loc_c2 is not None:
-            update_expression += ' loc_c2=::loc_c2,'
+            update_expression += ' loc_c2=:loc_c2,'
             update_attributes[':loc_c2'] = loc_c2
         if loc_c3 is not None:
             update_expression += ' loc_c3=:loc_c3,'
