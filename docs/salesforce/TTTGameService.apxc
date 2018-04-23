@@ -1,0 +1,42 @@
+/**
+ *	@description The service which handles all the request for the game
+ *
+ */
+@RestResource(urlMapping='/handleTTTCommand/*')
+global class TTTGameService {
+
+    @HttpPost
+    global static Map<String, String> compute(String resource, String channelId, String requestor, String command){
+        System.debug('CHANNEL: '+channelId+ ' REQUESTOR '+requestor + ' COMMAND: '+command );
+        Set<String> validResources = new Set<String>{'/ttt', '/ttt-accept', '/ttt-decline', '/ttt-end', '/ttt-move', '/ttt-board'};
+        System.debug('CONTAINS? '+validResources.contains(command));
+        Map<String, String> response = new Map<String, String>();
+        if(!validResources.contains(resource)){
+            response.put('statuscode', '404');
+            response.put('body', 'Invalid Request: Command not found.');
+        }
+
+        response.put('statuscode', '200');
+        String msg;
+        if(command == '/ttt'){
+            msg = TTTGameHandler.handleNewGame(channelId, requestor, command);
+            System.debug('MSG '+msg);
+        }else if(command == '/ttt-accept'){
+            msg = TTTGameHandler.handleNewGame(channelId, requestor, command);
+        }else if(command == '/ttt-decline'){
+            msg = TTTGameHandler.handleNewGame(channelId, requestor, command);
+        }else if(command == '/ttt-end'){
+            msg = TTTGameHandler.handleNewGame(channelId, requestor, command);
+        }else if(command == '/ttt-board'){
+            msg = TTTGameHandler.handleNewGame(channelId, requestor, command);
+        }else if(command == '/ttt-move'){
+            msg = TTTGameHandler.handleNewGame(channelId, requestor, command);
+        }else{
+            msg = 'Something went wriong';
+        }
+
+        response.put('body', msg);
+        return response;
+    }
+
+}

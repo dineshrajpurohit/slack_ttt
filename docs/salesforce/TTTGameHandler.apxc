@@ -1,0 +1,37 @@
+/**
+ * @description - Actual handler which handles the slack commands
+ *
+ *
+ **/
+public class TTTGameHandler {
+
+    public static String handleNewGame(String channelId, String requestor, String command){
+        String response = '';
+        return response;
+    }
+
+    public static String handleGameAccept(String channelId, String requestor, String command){
+        String response = '';
+        return response;
+    }
+
+    public static String handleGameDecline(String channelId, String requestor, String command){
+        String response = '';
+        return response;
+    }
+
+    public static String handleGameEnd(String channelId, String requestor, String command){
+        String response = '';
+        return response;
+    }
+
+    public static String handleGameBoardDisplay(String channelId, String requestor, String command){
+        String response = '';
+        return response;
+    }
+
+    public static String handleGameMove(String channelId, String requestor, String command){
+        String response = '';
+        return response;
+    }
+}

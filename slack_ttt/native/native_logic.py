@@ -1,6 +1,6 @@
 from slack_ttt.base_logic_source import BaseLogicSource
 from .dynamo_db import DynamoDB
-from .response_message import ResponseMessageBuilder as RMB
+from slack_ttt.response_message import ResponseMessageBuilder as RMB
 from datetime import datetime
 import time
 import logging
@@ -201,6 +201,7 @@ class NativeLogicSource(BaseLogicSource):
                            slack_response_type=response_type,
                            response=response)
 
+    @log_entry_exit
     def play_move(self):
         super().play_move()
         """Move handler handles the next move by the player.
@@ -277,6 +278,7 @@ class NativeLogicSource(BaseLogicSource):
                                game_response_type='move_invalid',
                                values=[])
 
+    @log_entry_exit
     def end_game(self):
         super().end_game()
         """In case a user wants to end the game if they want to
