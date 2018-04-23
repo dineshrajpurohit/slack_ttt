@@ -231,7 +231,7 @@ class RequestHandlerTest(unittest.TestCase):
                   }
         request = RequestHandler(params)
         response = request.route('/ttt-move')
-        self.assertIn('is a tie', response['body'])
+        self.assertIn('`Cat\'s Game.', response['body'])
 
     # GAME ENDING TEST CASES
 

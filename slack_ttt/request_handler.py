@@ -1,7 +1,7 @@
 from datetime import datetime
 from .dynamo_db import DynamoDB
-import json
 import time
+from .native import ResponseMessageBuilder as RMB
 
 class RequestHandler:
 
@@ -14,25 +14,6 @@ class RequestHandler:
         self.command = None
         if 'text' in params:
             self.command = params['text'][0]
-
-    @staticmethod
-    def respond(err, response_type='Ephemeral', response=None):
-        """This functions generates response based on info submitted by handler functions
-
-        :param err: exception object if any kind of exception is raised
-        :param res: response text to be sent back to slack
-        :return: response json sent to slack
-        """
-        return {
-            'statusCode': '400' if err else '200',
-            'body': err.message if err else json.dumps(
-                                                    {"response_type": response_type,
-                                                     "text": response}),
-            'headers': {
-                'Content-Type': 'application/json',
-            },
-        }
-
 
     def route(self, resource):
         """Route method to call appropriate method based on the resource provided
@@ -55,8 +36,6 @@ class RequestHandler:
             response = self.__move()
         elif resource == '/ttt-end':
             response = self.__end()
-        else:
-            response = self.__invalid_request()
         return response
 
     def __new_game(self):
@@ -66,18 +45,21 @@ class RequestHandler:
         :return:
         """
         if self.command is None:
-            return self.respond(None, response='Please invite an opponent to play with you.'
-                                               ' Use command `/ttt @opponentName`')
+            return RMB.respond(None,
+                               game_response_type='new_game_no_opponent',
+                               values=[])
 
         if self.command == self.requester:
-            return self.respond(None, response='You cannot challenge yourself. Please select other opponent.')
+            return RMB.respond(None,
+                               game_response_type='new_game_challenge_self',
+                               values=[])
 
         current_game = self.ddb.current_game_state(self.channel_id)
 
         if 'Item' in current_game and current_game['Item']['game_status'] == 'in_progress':
-            return self.respond(None, response='A game is already in progress between `{0}` and `{1}`, '
-                                               'Please wait for the game to end or type `/ttt-board` to view status of the game'
-                                .format(self.requester, self.command))
+            return RMB.respond(None,
+                               game_response_type='new_game_in_progress',
+                               values=[self.requester, self.command])
 
         # make sure new challenge is not made when there is a challenge pending from 30 mins
         if "Item" in current_game:
@@ -87,24 +69,24 @@ class RequestHandler:
             created_at_ts = time.mktime(created_at.timetuple())
             now_ts = time.mktime(now.timetuple())
             if ((now_ts - created_at_ts) / 60) < 5:
-                return self.respond(None, response="""A challenge was made recently by `{0}` to `{1}`. 
-                Please wait for 5 minutes before new challenge can be made."""
-                                    .format(current_game['challenger_name'], current_game['opponent_name']))
-
+                return RMB.respond(None,
+                                   game_response_type='new_game_new_challenge',
+                                   values=[current_game['challenger_name'], current_game['opponent_name']])
         # start game
         new_game = self.ddb.create_new_game(self.channel_id,
                                             self.requester,
                                             self.command)
 
         if new_game is not None:
-            msg = '`{0}` has challenged `{1}` for a game of tic tac toe. \n `{2}` has 5 minutes to accept ' \
-                  'the challenge by replying'\
-                .format(self.requester, self.command, self.command)
-            msg += ' `/ttt-accept` or decline the challenge by replying `/ttt-decline`'
-            return self.respond(None, response_type='in_channel', response=msg)
+            return RMB.respond(None,
+                               game_response_type='new_valid_game',
+                               values=[self.requester, self.command, self.command],
+                               slack_response_type='in_channel')
         else:
             print('Something went wrong when challenging for a game of tic-tac-toe')
-            return self.respond(None, response='Something went wrong')
+            return RMB.respond(None,
+                               game_response_type='err_response',
+                               values=[])
 
     def __draw_board(self,
                          loc_a1='#',
@@ -146,34 +128,9 @@ class RequestHandler:
 
         :return:
         """
-        help  = '*Tic-Tac-Toe Game Help*\n'
-        help += 'Instruction on commands to play the game \n'
-        help += '`/ttt @opponentusername` - challenge a game of ttt with the opponent.\n'
-        help += '`/ttt-accept` - accept the challenge to play the game.\n'
-        help += '`/ttt-decline` - decline challenge to play the game\n'
-        help += '`/ttt-board` - display current status of the tic-tac-toe board\n'
-        help += '`/ttt-move b3` - enter \'X\' or \'O\' at the specified location (row *b* and column *3*)\n'
-        help += '`/ttt-help` - display help for the tic-tac-toe game\n'
-        help += '`/ttt-end` - end the current game\n\n'
-        help += '            `Board for Tic-Tac-Toe` \n\n'
-        help += """```
-
-                                   1      2      3
-                                |------+------+------|
-                             a  |  a1  |  a2  |  a3  |
-                                |------+------+------|
-                             b  |  b1  |  b2  |  b3  |
-                                |------+------+------|
-                             c  |  c1  |  c2  |  c3  |
-                                |------+------+------|
-
-                ```"""
-        help += """ Rows are represented by letter `a`, `b` and `c` and columns are represented by number `1`, `2`, `3`.
-         Every move user make should be combination of row and column location.
-            e.g `/ttt-move b1`"""
-
-
-        return self.respond(None, response=help)
+        return RMB.respond(None,
+                           game_response_type='help_text',
+                           values=[])
 
     def __accept(self):
         """Accept request handler is called when the user accepts a challenge
@@ -189,15 +146,16 @@ class RequestHandler:
         #   trying to accept a challenge with no game
 
         if not 'Item' in current_game or current_game['Item']['game_status'] == 'in_progress':
-            return self.respond(None, response='You have not been challenged for a game of tic-tac-toe yet. '
-                                               'If you are interested in playing, challenge someone by typing '
-                                               '`/ttt @opponentName`')
+            return RMB.respond(None,
+                               game_response_type='accept_no_challenge',
+                               values=[])
 
         current_game = current_game['Item']
         #   Wrong opponent trying to accept the challenge
         if current_game['opponent_name'] != self.requester:
-            return self.respond(None, response='Only `{0}` can accept the challenge.'
-                                .format(current_game['opponent_name']))
+            return RMB.respond(None,
+                               game_response_type='accept_wrong_player',
+                               values=[current_game['opponent_name']])
 
         # right opponent trying to accept the challenge
         self.ddb.update_game(channel_id=self.channel_id, game_status='in_progress')
@@ -212,7 +170,11 @@ class RequestHandler:
         response += self.__draw_board()
         response += '\n> Play next move using command like eg. `/ttt-move b3` where `b` is row `3` is column in the grid'
 
-        return self.respond(None, response_type='in_channel', response=response)
+        return RMB.respond(None,
+                           game_response_type='',
+                           values=[],
+                           slack_response_type='in_channel',
+                           response=response)
 
     def __decline(self):
         """Decline request handler is called when the user declines a challenge
@@ -221,12 +183,14 @@ class RequestHandler:
         """
         current_game = self.ddb.current_game_state(self.channel_id)
         if "Item" not in current_game:
-            return self.respond(None, response='`No current games exists.`')
+            return RMB.respond(None,
+                               game_response_type='decline_no_game',
+                               values=[])
 
         if current_game['Item']['game_status'] == 'in_progress':
-            return self.respond(None, response='There is already a game in progress. '
-                                      'If you are part of the game and dont\'t want to play anymore '
-                                      'please type `/ttt-end` instead.')
+            return RMB.respond(None,
+                               game_response_type='decline_game_in_progress',
+                               values=[])
 
         current_game = current_game['Item']
         cg_challenger = current_game['challenger_name']
@@ -237,15 +201,18 @@ class RequestHandler:
         if cg_status == 'challenged':
             if cg_opponent == self.requester:
                 self.ddb.delete_game(self.channel_id)
-                return self.respond(None,
-                                    response_type='in_channel',
-                                    response='{0} declined a challenge to play tic-tac-toe by {1}'
-                                    .format(cg_opponent, cg_challenger))
+                return RMB.respond(None,
+                                   game_response_type='decline_right_player',
+                                   values=[cg_opponent, cg_challenger],
+                                   slack_response_type='in_channel')
             else:
-                return self.respond(None, response='Only `{0}` can decline the challenge.'.format(cg_opponent))
-
+                return RMB.respond(None,
+                                   game_response_type='decline_wrong_player',
+                                   values=[cg_opponent])
         else:
-            return self.respond(None, response='Something went wrong with your command. Please try again')
+            return RMB.respond(None,
+                               game_response_type='err_response',
+                               values=[])
 
     def __board(self, response_type='Ephemeral'):
         """Board request handler displays the current status of the board to the user.
@@ -256,8 +223,9 @@ class RequestHandler:
 
         # if no game is being played
         if 'Item' not in current_game or current_game['Item']['game_status'] == 'challenged':
-            return self.respond(None, response="""No tic-tac-toe game is being played currently. \
-            If you are interested then you can challenge someone using command \n `/ttt @opponentName`""")
+            return RMB.respond(None,
+                               game_response_type='board_no_game',
+                               values=[])
 
         current_game = current_game['Item']
         response = 'Current Status of the game: `{0}` ( `{1}` ) vs `{2}` ( `{3}` )'\
@@ -275,7 +243,11 @@ class RequestHandler:
                                       current_game['loc_c1'],
                                       current_game['loc_c2'],
                                       current_game['loc_c3'],)
-        return self.respond(None, response_type=response_type, response=response)
+        return RMB.respond(None,
+                           game_response_type='',
+                           values=[],
+                           slack_response_type=response_type,
+                           response=response)
 
     def __check_valid_move(self, move, current_game):
         moves = {'a1': current_game['loc_a1'],
@@ -384,20 +356,23 @@ class RequestHandler:
         """
         # if there is no command
         if self.command is None:
-            return self.respond(None, response='You have not provided a location for the move. \n'
-                                               ' Use command `/ttt-move [location]')
+            return RMB.respond(None,
+                               game_response_type='move_no_position',
+                               values=[])
 
         current_game = self.ddb.current_game_state(self.channel_id)
 
         if 'Item' not in current_game or current_game['Item']['game_status'] == 'challenged':
-            return self.respond(None, response="""No tic-tac-toe game is being played currently. \
-                        If you are interested then you can challenge someone using command \n `/ttt @opponentName`""")
+            return RMB.respond(None,
+                               game_response_type='move_no_game',
+                               values=[])
 
         current_game = current_game['Item']
 
         if current_game['current_turn_player'] != self.requester:
-            return self.respond(None, response='Only `{0}` can play the next move in the game.'
-                                .format(current_game['current_turn_player']))
+            return RMB.respond(None,
+                               game_response_type='move_wrong_player',
+                               values=[current_game['current_turn_player']])
 
         # check valid move
         if self.__check_valid_move(self.command, current_game):
@@ -426,24 +401,27 @@ class RequestHandler:
                                               current_game['loc_c3'])
 
             if self.__check_winner(current_game):
-                response = '`{0}` has won the game :fireworks: :fireworks: :sparkler: :tada: :confetti_ball: \n\n'\
-                    .format(self.requester)
+                response = RMB.response('game_won', [self.requester])
+
             # check if the last move was a tie
             elif self.__check_game_tie(current_game):
-                response = 'The game between `{0}` and `{1}` is a `Cat\'s Game.` \n'\
-                    .format(current_game['challenger_name'], current_game['opponent_name'])
+                response = RMB.response('game_tie', [current_game['challenger_name'],
+                                                    current_game['opponent_name']])
             else:
                 return self.__board(response_type='in_channel')
 
             self.ddb.delete_game(self.channel_id)
             response += '`The final status of the board`\n\n'
             response += board
-            return self.respond(None, response_type="in_channel", response=response)
-
+            return RMB.respond(None,
+                               game_response_type='',
+                               slack_response_type='in_channel',
+                               values=[],
+                               response=response)
         else:
-            return self.respond(None, response='Invalid move. Please check the board by typing'
-                                               ' `/ttt-board` for available moves.')
-
+            return RMB.respond(None,
+                               game_response_type='move_invalid',
+                               values=[])
 
     def __end(self):
         """In case a user wants to end the game if they want to
@@ -452,22 +430,20 @@ class RequestHandler:
         """
         current_game = self.ddb.current_game_state(self.channel_id)
         if 'Item' not in current_game or current_game['Item']['game_status'] == 'challenged':
-            return self.respond(None, response='`There are no current game being played`')
+            return RMB.respond(None,
+                               game_response_type='end_no_game',
+                               values=[])
 
         current_game = current_game['Item']
         if self.requester == current_game['challenger_name'] or self.requester == current_game['opponent_name']:
             self.ddb.delete_game(self.channel_id)
-            return self.respond(None,
-                                response_type='in_channel',
-                                response='`{0}` has ended the game.'.format(self.requester))
+            return RMB.respond(None,
+                               game_response_type='end_game',
+                               values=[self.requester],
+                               slack_response_type='in_channel')
         else:
-            return self.respond(None, response='Only the players who are currently playing can end the game')
+            return RMB.respond(None,
+                               game_response_type='end_wrong_player',
+                               values=[])
 
-
-    def __invalid_request(self):
-        """Send a invalid response payload if there is any issue encountered with the request
-
-        :return: Invalid response payload
-        """
-        return self.respond(None, response='Invalid request')
 
