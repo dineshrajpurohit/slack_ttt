@@ -12,7 +12,7 @@ public class TTTGameHandler {
                              	gameStatus__c, locA1__c, locA2__c, locA3__c,
                              	locB1__c , locB2__c , locB3__c,
                              	locC1__c , locC2__c , locC3__c,
-                             	CreatedDate
+                             	gameWinState__c, gameTieState__c, CreatedDate
                             FROM ttt__c
                             WHERE channelId__c=:channelId
                             ];
@@ -113,7 +113,14 @@ public class TTTGameHandler {
         currentGame.gameStatus__c = 'in_progress';
         update currentGame;
         response.put('game_response_type', 'accept_right_player');
-        response.put('values', currentGame.opponentName__c);
+        response.put('values', currentGame.opponentName__c+','
+                     			+currentGame.challengerName__c+','
+                     			+currentGame.challengerName__c+','
+                     			+currentGame.challengerAction__c+','
+                    			+currentGame.opponentName__c+','
+                    			+currentGame.opponentAction__c+','
+                    			+currentGame.currentTurnPlayer__c);
+        response.put('slack_response_type', 'in_channel');
         return response;
     }
 
@@ -150,16 +157,152 @@ public class TTTGameHandler {
 
     public static Map<String, String> handleGameEnd(String channelId, String requestor, String command){
         Map<String, String> response = new Map<String, String>();
-        return response;
-    }
+        ttt__c currentGame = getGame(channelId);
+        // if there is not current game or if the current game is in challenged state
+        if(currentGame == null || currentGame.gameStatus__c == 'challenged'){
+            response.put('game_response_type', 'end_no_game');
+            response.put('values', '');
+           	return response;
+        }
 
-    public static Map<String, String> handleGameBoardDisplay(String channelId, String requestor, String command){
+        if(currentGame.challengerName__c.equals(requestor) ||
+           currentGame.opponentName__c.equals(requestor) ){
+               delete currentGame;
+               response.put('game_response_type', 'end_game');
+               response.put('values', requestor);
+               response.put('slack_response_type', 'in_channel');
+               return response;
+           }else{
+               response.put('game_response_type', 'end_wrong_player');
+               response.put('values', '');
+               return response;
+           }
+     }
+
+    public static Map<String, String> handleGameBoardDisplay(String channelId, String requestor, String command, String slackResponseType){
         Map<String, String> response = new Map<String, String>();
+        ttt__c currentGame = getGame(channelId);
+
+        // if there is no current game being played
+        if(currentGame == null || currentGame.gameStatus__c == 'challenged'){
+            response.put('game_response_type', 'board_no_game');
+            response.put('values', '');
+			return response;
+        }
+
+        response.put('game_response_type', 'board');
+        response.put('values', currentGame.challengerName__c+','
+                     +currentGame.challengerAction__c+','
+                     +currentGame.opponentName__c+','
+                     +currentGame.opponentAction__c+','
+                     +currentGame.currentTurnPlayer__c);
+        response.put('slack_response_type', slackResponseType);
         return response;
     }
 
     public static Map<String, String> handleGameMove(String channelId, String requestor, String command){
         Map<String, String> response = new Map<String, String>();
+
+		// User have not entered any command
+        if(command == null){
+            response.put('game_response_type', 'move_no_position');
+            response.put('values', '');
+            return response;
+        }
+
+        ttt__c currentGame = getGame(channelId);
+
+        // if no game exist
+        if(currentGame == null || currentGame.gameStatus__c == 'challenged'){
+            response.put('game_response_type', 'move_no_game');
+            response.put('values', '');
+            return response;
+        }
+
+        //if the wrong player tries to play the move
+        if(!currentGame.currentTurnPlayer__c.equals(requestor)){
+            response.put('game_response_type', 'move_wrong_player');
+            response.put('values', currentGame.currentTurnPlayer__c);
+            return response;
+        }
+
+        // Valid move
+        if(validMove(command, currentGame)){
+            String currentPlayer = requestor;
+            String move = '';
+            String nextPlayer = currentPlayer;
+            if(currentPlayer.equals(currentGame.challengerName__c)){
+                move = currentGame.challengerAction__c;
+                nextPlayer = currentGame.opponentName__c;
+            }else{
+                move = currentGame.opponentAction__c;
+                nextPlayer = currentGame.challengerName__c;
+            }
+            updateTTTGameState(command, move, nextPlayer, currentGame);
+            currentGame = getGame(channelId);
+            if(currentGame.gameWinState__c){
+                response.put('game_response_type', 'game_won');
+                response.put('values', requestor);
+            }else if(currentGame.gameTieState__C){
+                response.put('game_response_type', 'game_tie');
+                response.put('values', currentGame.challengerName__c+','+currentGame.opponentName__c);
+            }else{
+                return handleGameBoardDisplay(channelId, requestor, command, 'in_channel');
+            }
+            delete currentGame;
+        }
+
         return response;
     }
+    private static Boolean validMOve(String move, ttt__c currentGame){
+        Map<String, String> moves = new Map<String, String>{ 'a1'=> currentGame.locA1__c,
+                                                             'a2'=> currentGame.locA2__c,
+                                                             'a3'=> currentGame.locA3__c,
+                                                             'b1'=> currentGame.locB1__c,
+                                                             'b2'=> currentGame.locB2__c,
+                                                             'b3'=> currentGame.locB3__c,
+                                                             'c1'=> currentGame.locC1__c,
+                                                             'c2'=> currentGame.locC2__c,
+                                                             'c3'=> currentGame.locC3__c
+                                                             };
+
+       if(moves.containsKey(move) && moves.get(move) == null){
+       		return true;
+       }else{
+           return false;
+       }
+    }
+
+    private static void updateTTTGameState(String move, String val, String nextPlayer, ttt__c currentGame){
+        currentGame.currentTurnPlayer__c = nextPlayer;
+        if(move == 'a1'){
+            currentGame.locA1__c = val;
+        }
+        if(move == 'a2'){
+            currentGame.locA2__c = val;
+        }
+        if(move == 'a3'){
+            currentGame.locA3__c = val;
+        }
+        if(move == 'b1'){
+            currentGame.locB1__c = val;
+        }
+        if(move == 'b2'){
+            currentGame.locB2__c = val;
+        }
+        if(move == 'b3'){
+            currentGame.locB3__c = val;
+        }
+        if(move == 'c1'){
+            currentGame.locC1__c = val;
+        }
+        if(move == 'c2'){
+            currentGame.locC2__c = val;
+        }
+        if(move == 'c3'){
+            currentGame.locC3__c = val;
+        }
+        update currentGame;
+    }
+
 }

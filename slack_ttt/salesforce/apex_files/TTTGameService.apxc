@@ -21,15 +21,15 @@ global class TTTGameService {
             gameResponse = TTTGameHandler.handleNewGame(channelId, requestor, command);
             System.debug('GRESP: '+gameResponse);
         }else if(resource.equals('/ttt-accept')){
-            gameResponse = TTTGameHandler.handleNewGame(channelId, requestor, command);
+            gameResponse = TTTGameHandler.handleGameAccept(channelId, requestor, command);
         }else if(resource.equals('/ttt-decline')){
-            gameResponse = TTTGameHandler.handleNewGame(channelId, requestor, command);
+            gameResponse = TTTGameHandler.handleGameDecline(channelId, requestor, command);
         }else if(resource.equals('/ttt-end')){
-            gameResponse = TTTGameHandler.handleNewGame(channelId, requestor, command);
+            gameResponse = TTTGameHandler.handleGameEnd(channelId, requestor, command);
         }else if(resource.equals('/ttt-board')){
-            gameResponse = TTTGameHandler.handleNewGame(channelId, requestor, command);
+            gameResponse = TTTGameHandler.handleGameBoardDisplay(channelId, requestor, command, 'Ephemeral');
         }else if(resource.equals('/ttt-move')){
-            gameResponse = TTTGameHandler.handleNewGame(channelId, requestor, command);
+            gameResponse = TTTGameHandler.handleGameMove(channelId, requestor, command);
         }
         response.put('body', gameResponse);
         return response;
