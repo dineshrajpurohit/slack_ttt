@@ -1,0 +1,165 @@
+/**
+ * @description - Actual handler which handles the slack commands
+ *
+ *
+ **/
+public class TTTGameHandler {
+
+    private static ttt__c getGame(String channelId){
+        List<ttt__c> game = [SELECT
+                             	Name, channelId__c, challengerName__c, challengerAction__c,
+                             	opponentName__c, opponentAction__c, currentTurnPlayer__c,
+                             	gameStatus__c, locA1__c, locA2__c, locA3__c,
+                             	locB1__c , locB2__c , locB3__c,
+                             	locC1__c , locC2__c , locC3__c,
+                             	CreatedDate
+                            FROM ttt__c
+                            WHERE channelId__c=:channelId
+                            ];
+        if(game.size() == 1){
+            return game[0];
+        }else{
+            return null;
+        }
+    }
+
+    private static void createNewGame(String channelId, String challenger, String opponent){
+        ttt__c newGame = new ttt__C();
+            newGame.channelId__c =channelId;
+            newGame.challengerName__c=challenger;
+        	newGame.opponentName__c= opponent;
+            Integer random = Math.round(Math.random()*10);
+            if(random < 6){
+                newGame.challengerAction__c = 'X';
+                newGame.opponentAction__c = 'O';
+                newGame.currentTurnPlayer__c = challenger;
+            }else{
+                newGame.challengerAction__c = 'O';
+                newGame.opponentAction__c = 'X';
+                newGame.currentTurnPlayer__c = opponent;
+            }
+            newGame.gameStatus__c = 'challenged';
+            insert newGame;
+    }
+
+    public static Map<String, String> handleNewGame(String channelId, String requestor, String command){
+        Map<String, String> response = new Map<String, String>();
+
+        // When command is empty - no user specified
+        if(command == null){
+            response.put('game_response_type', 'new_game_no_opponent');
+            response.put('values', '');
+            return response;
+        }
+
+        // When the command (opponent) is same as requestor
+        if(requestor.equals(command)){
+            response.put('game_response_type', 'new_game_challenge_self');
+            response.put('values', '');
+            return response;
+        }
+
+        // Valid new game
+        ttt__c currentGame = getGame(channelId);
+
+        if(currentGame == null){
+            createNewGame(channelId, requestor, command);
+            response.put('game_response_type', 'new_valid_game');
+            response.put('values', requestor+','+command+','+command);
+            return response;
+        }
+
+        // if the game is in progress
+        if(currentGame.gameStatus__c == 'in_progress'){
+            response.put('game_response_type', 'new_game_in_progress');
+            response.put('values', requestor+','+command);
+            return response;
+        }
+
+        if(currentGame.gameStatus__c == 'challenged'){
+            Long now_unix = Datetime.now().getTime()/1000;
+            Long created_unix = currentGame.createdDate.getTime()/1000;
+            if(((now_unix-created_unix) / 60) < 6){
+                response.put('game_response_type', 'new_game_new_challenge');
+                response.put('values', currentGame.challengerName__c+','+currentGame.opponentName__c);
+            }else{
+                delete currentGame;
+                createNewGame(channelId, requestor, command);
+                response.put('game_response_type','new_valid_game');
+                response.put('values', requestor+','+command+','+command);
+            }
+        }
+
+        return response;
+    }
+
+    public static Map<String, String> handleGameAccept(String channelId, String requestor, String command){
+        Map<String, String> response = new Map<String, String>();
+        ttt__C currentGame = getGame(channelId);
+
+        if(currentGame == null || currentGame.gameStatus__c == 'in_progress'){
+            response.put('game_response_type', 'accept_no_challenge');
+            response.put('values', '');
+            return response;
+        }
+
+        if(currentGame.opponentName__c != requestor){
+            response.put('game_response_type', 'accept_wrong_player');
+            response.put('values', currentGame.opponentName__c);
+            return response;
+        }
+
+        // update game status
+        currentGame.gameStatus__c = 'in_progress';
+        update currentGame;
+        response.put('game_response_type', 'accept_right_player');
+        response.put('values', currentGame.opponentName__c);
+        return response;
+    }
+
+    public static Map<String, String> handleGameDecline(String channelId, String requestor, String command){
+        Map<String, String> response = new Map<String, String>();
+        ttt__c currentGame = getGame(channelId);
+
+        if(currentGame == null){
+            response.put('game_response_type', 'decline_no_game');
+            response.put('values', '');
+            return response;
+        }
+
+        if(currentGame.gameStatus__c == 'in_progress'){
+            response.put('game_response_type', 'decline_game_in_progress');
+            response.put('values', '');
+            return response;
+        }
+
+        if(currentGame.gameStatus__c == 'challenged'){
+            if(currentGame.opponentName__c.equals(requestor)){
+                response.put('game_response_type', 'decline_right_player');
+            	response.put('values', currentGame.opponentName__c+','+currentGame.challengerName__c);
+                response.put('slack_response_type', 'in_channel');
+            	return response;
+            }else{
+                response.put('game_response_type', 'decline_wrong_player');
+            	response.put('values', currentGame.opponentName__c);
+            	return response;
+            }
+        }
+        return response;
+    }
+
+    public static Map<String, String> handleGameEnd(String channelId, String requestor, String command){
+        Map<String, String> response = new Map<String, String>();
+        return response;
+    }
+
+    public static Map<String, String> handleGameBoardDisplay(String channelId, String requestor, String command){
+        Map<String, String> response = new Map<String, String>();
+        return response;
+    }
+
+    public static Map<String, String> handleGameMove(String channelId, String requestor, String command){
+        Map<String, String> response = new Map<String, String>();
+        return response;
+    }
+}

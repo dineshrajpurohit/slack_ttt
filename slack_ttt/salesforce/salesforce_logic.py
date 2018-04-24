@@ -14,7 +14,6 @@ class SalesforceLogicSource(BaseLogicSource):
                                password=SFDC_PASSWORD,
                                security_token=SFDC_TOKEN)
 
-        # print(sfdc.apexecute('handleTTTCommand', method='POST', data={'channelId':'ABC1234', 'requestor':'@user1', 'command':'/ttt'}))
         self.channel_id = params['channel_id'][0]
         self.requester = '@' + params['user_name'][0]
         self.command = None
@@ -30,9 +29,31 @@ class SalesforceLogicSource(BaseLogicSource):
                                          'command': self.command
                                          })
 
+    def __generate_response(self, response_map):
+        print('*** RESPONSE: ',response_map);
+        game_response_type = response_map['game_response_type']
+        values = response_map['values'].split(',')
+        slack_response_type = None
+        if "slack_response_type" in response_map:
+            slack_response_type = response_map["slack_response_type"]
+        else:
+            slack_response_type = 'Ephemeral'
+
+        response = None
+        if 'response' in response_map:
+            response = response_map['response']
+
+        return RMB.respond(None,
+                           game_response_type=game_response_type,
+                           values=values,
+                           slack_response_type=slack_response_type,
+                           response=response)
+
+
+
     def new_game(self):
         response = self.__sfdc_rest_call('/ttt')
-        return response['body']
+        return self.__generate_response(response['body'])
 
 
     def game_help(self):
@@ -47,24 +68,20 @@ class SalesforceLogicSource(BaseLogicSource):
 
     def accept_game(self):
         response = self.__sfdc_rest_call('/ttt-accept')
-        return response['body']
+        return self.__generate_response(response['body'])
 
     def decline_game(self):
         response = self.__sfdc_rest_call('/ttt-decline')
-        return response['body']
+        return self.__generate_response(response['body'])
 
     def display_board(self):
         response = self.__sfdc_rest_call('/ttt-board')
-        return response['body']
+        return self.__generate_response(response['body'])
 
     def play_move(self):
         response = self.__sfdc_rest_call('/ttt-move')
-        return response['body']
+        return self.__generate_response(response['body'])
 
     def end_game(self):
         response = self.__sfdc_rest_call('/ttt-end')
-        return response['body']
-
-
-if __name__ == "__main__":
-    s = SalesforceLogicSource()
+        return self.__generate_response(response['body'])

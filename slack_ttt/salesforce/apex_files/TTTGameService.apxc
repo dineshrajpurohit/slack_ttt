@@ -1,0 +1,38 @@
+/**
+ *	@description The service which handles all the request for the game
+ *
+ */
+@RestResource(urlMapping='/handleTTTCommand/*')
+global class TTTGameService {
+
+    @HttpPost
+    global static Map<String, Map<String, String>> compute(String resource, String channelId, String requestor, String command){
+        System.debug('CHANNEL: '+channelId+ ' REQUESTOR '+requestor + ' COMMAND: '+command );
+        Set<String> validResources = new Set<String>{'/ttt', '/ttt-accept', '/ttt-decline', '/ttt-end', '/ttt-move', '/ttt-board'};
+        System.debug('CONTAINS? '+validResources.contains(command));
+        Map<String, Map<String, String>> response = new Map<String, Map<String, String>>();
+        Map<String, String> gameResponse = new Map<String, String>();
+
+        if(!validResources.contains(resource)){
+            response.put('body', gameResponse);
+        }
+
+        if(resource.equals('/ttt')){
+            gameResponse = TTTGameHandler.handleNewGame(channelId, requestor, command);
+            System.debug('GRESP: '+gameResponse);
+        }else if(resource.equals('/ttt-accept')){
+            gameResponse = TTTGameHandler.handleNewGame(channelId, requestor, command);
+        }else if(resource.equals('/ttt-decline')){
+            gameResponse = TTTGameHandler.handleNewGame(channelId, requestor, command);
+        }else if(resource.equals('/ttt-end')){
+            gameResponse = TTTGameHandler.handleNewGame(channelId, requestor, command);
+        }else if(resource.equals('/ttt-board')){
+            gameResponse = TTTGameHandler.handleNewGame(channelId, requestor, command);
+        }else if(resource.equals('/ttt-move')){
+            gameResponse = TTTGameHandler.handleNewGame(channelId, requestor, command);
+        }
+        response.put('body', gameResponse);
+        return response;
+    }
+
+}
